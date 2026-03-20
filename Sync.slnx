@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Sync/Sync.csproj" />
+  <Project Path="Test/Test.csproj" />
+</Solution>

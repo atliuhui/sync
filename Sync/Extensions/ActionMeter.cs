@@ -1,0 +1,96 @@
+﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
+
+namespace Sync.Extensions
+{
+    internal class ActionMeter : IDisposable
+    {
+        public string name;
+        public Stopwatch stopwatch;
+        public long heapsize;
+
+        public ActionMeter(string name)
+        {
+            this.name = name;
+            this.stopwatch = Stopwatch.StartNew();
+            //https://learn.microsoft.com/zh-cn/dotnet/api/system.gc.gettotalmemory
+            this.heapsize = GC.GetTotalMemory(true);
+        }
+        public void Dispose()
+        {
+            this.stopwatch.Stop();
+            var current = GC.GetTotalMemory(true);
+
+            Console.WriteLine();
+            Console.WriteLine($"{DateTime.Now.ToString("s")}, {name} completed in {this.stopwatch.Elapsed}, used {FormatSize(current - this.heapsize)} / {FormatSize(GC.GetTotalAllocatedBytes(true))} mb.");
+        }
+
+        static decimal FormatSize(long value)
+        {
+            return Math.Round((decimal)value / 1024 / 1024, 2);
+        }
+        static decimal FormatTime(Stopwatch value)
+        {
+            return Math.Round((decimal)value.ElapsedMilliseconds, 0);
+        }
+        public string ConsoleFormat(string text)
+        {
+            var width = Console.WindowWidth;
+            var name_format = $"{this.name} ";
+            var time_format = $" ({(int)this.stopwatch.Elapsed.TotalSeconds} s)";
+            var text_width = width - name_format.Length - time_format.Length;
+            var format = $"{name_format}{CutFormat(text, text_width, out var pad).PadLeft(pad)}{time_format}";
+
+            return format;
+        }
+        static string CutFormat(string text, int width, out int pad)
+        {
+            pad = width;
+            var actual = 0;
+            var index = 0;
+            for (var i = text.Length - 1; i >= 0; i--)
+            {
+                if (IsWideChar(text.ElementAt(i)))
+                {
+                    actual = actual + 2;
+                    pad = pad - 1;
+                }
+                else
+                {
+                    actual = actual + 1;
+                }
+                if (actual <= width)
+                {
+                    index = i;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return text.Substring(index);
+        }
+        //粗略判断是否为常见“全角/东亚宽字符”（终端通常占两格）
+        static bool IsWideChar(char ch)
+        {
+            // CJK Unified Ideographs
+            if (ch >= '\u4E00' && ch <= '\u9FFF') return true;
+
+            // CJK Symbols and Punctuation
+            if (ch >= '\u3000' && ch <= '\u303F') return true;
+
+            // Hiragana / Katakana
+            if (ch >= '\u3040' && ch <= '\u30FF') return true;
+
+            // Fullwidth Forms
+            if (ch >= '\uFF01' && ch <= '\uFF60') return true;
+            if (ch >= '\uFFE0' && ch <= '\uFFE6') return true;
+
+            // Hangul Syllables
+            if (ch >= '\uAC00' && ch <= '\uD7AF') return true;
+
+            return false;
+        }
+    }
+}
