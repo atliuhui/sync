@@ -102,16 +102,26 @@ namespace Sync.Services
         }
         public void RecordIndex(string key, Func<FileIndex> action)
         {
-            if (this.Records.ContainsKey(key) == false)
+            lock (this.Records)
             {
-                var index = action.Invoke();
-                lock (this)
+                if (this.Records.ContainsKey(key))
                 {
-                    this.Records.Add(key, index);
-                    this.StorageCachingIndexWriter?.WriteRecord(index);
-                    this.StorageCachingIndexWriter?.NextRecord();
-                    this.StorageCachingIndexWriter?.Flush();
+                    return;
                 }
+            }
+
+            var index = action.Invoke();
+
+            lock (this.Records)
+            {
+                if (this.Records.ContainsKey(key))
+                {
+                    return;
+                }
+                this.Records.Add(key, index);
+                this.StorageCachingIndexWriter?.WriteRecord(index);
+                this.StorageCachingIndexWriter?.NextRecord();
+                this.StorageCachingIndexWriter?.Flush();
             }
         }
         public string GetSubfolder(FileIndex index)
@@ -147,16 +157,25 @@ namespace Sync.Services
 
         public void Dispose()
         {
-            if (this.StorageCachingIndexWriter != null) { this.StorageCachingIndexWriter.Dispose(); }
-            if (this.StorageCachingIndexStreamWriter != null) { this.StorageCachingIndexStreamWriter.Dispose(); }
+            try
+            {
+                this.StorageCachingIndexWriter?.Dispose();
+            }
+            finally
+            {
+                this.StorageCachingIndexStreamWriter?.Dispose();
+                this.StorageCachingIndexWriter = null;
+                this.StorageCachingIndexStreamWriter = null;
+                GC.SuppressFinalize(this);
+            }
         }
     }
 
     public class FileIndex
     {
-        public string Path { get; set; }
+        public string Path { get; set; } = string.Empty;
         public long Size { get; set; }
         public DateTime Date { get; set; }
-        public string Note { get; set; }
+        public string Note { get; set; } = string.Empty;
     }
 }

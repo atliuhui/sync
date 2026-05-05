@@ -5,10 +5,10 @@ using System.Text;
 
 namespace Sync.Extensions
 {
-    internal static class GrokExtension
+    public static class GrokExtension
     {
-        static IEnumerable<string> GrokCores { get; set; }
-        static IEnumerable<GrokPatternDate> GrokDates { get; set; }
+        static IEnumerable<string> GrokCores { get; set; } = Array.Empty<string>();
+        static IEnumerable<GrokPatternDate> GrokDates { get; set; } = Array.Empty<GrokPatternDate>();
 
         public static void Init(IConfiguration configuration)
         {
@@ -47,10 +47,10 @@ namespace Sync.Extensions
 
     public class GrokPatternDate
     {
-        public string Name { get; set; }
-        public string Pattern { get; set; }
-        public string Format { get; set; }
-        public IEnumerable<string> Samples { get; set; }
-        public Grok Grok { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Pattern { get; set; } = string.Empty;
+        public string Format { get; set; } = string.Empty;
+        public IEnumerable<string> Samples { get; set; } = Array.Empty<string>();
+        public Grok Grok { get; set; } = null!;
     }
 }

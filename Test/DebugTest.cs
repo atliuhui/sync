@@ -10,7 +10,7 @@ using System.IO.Hashing;
 namespace Test
 {
     [TestClass]
-    public sealed class FileParserTest
+    public sealed class DebugTest
     {
         [TestMethod]
         public void MediaInfoWrapper_Normal()

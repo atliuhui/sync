@@ -1,37 +1,39 @@
 ﻿using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 namespace Sync.Extensions
 {
     internal class ActionMeter : IDisposable
     {
-        public string name;
-        public Stopwatch stopwatch;
-        public long heapsize;
+        readonly string name;
+        readonly Stopwatch stopwatch;
+        readonly long heapsize;
+        bool disposed;
 
         public ActionMeter(string name)
         {
             this.name = name;
             this.stopwatch = Stopwatch.StartNew();
-            //https://learn.microsoft.com/zh-cn/dotnet/api/system.gc.gettotalmemory
-            this.heapsize = GC.GetTotalMemory(true);
+            // https://learn.microsoft.com/zh-cn/dotnet/api/system.gc.gettotalmemory
+            this.heapsize = GC.GetTotalMemory(forceFullCollection: true);
         }
         public void Dispose()
         {
+            if (this.disposed)
+            {
+                return;
+            }
+            this.disposed = true;
+
             this.stopwatch.Stop();
-            var current = GC.GetTotalMemory(true);
+            var current = GC.GetTotalMemory(forceFullCollection: true);
 
             Console.WriteLine();
-            Console.WriteLine($"{DateTime.Now.ToString("s")}, {name} completed in {this.stopwatch.Elapsed}, used {FormatSize(current - this.heapsize)} / {FormatSize(GC.GetTotalAllocatedBytes(true))} mb.");
+            Console.WriteLine($"{DateTime.Now:s}, {this.name} completed in {this.stopwatch.Elapsed}, used {FormatSize(current - this.heapsize)} / {FormatSize(GC.GetTotalAllocatedBytes(precise: true))} mb.");
         }
 
         static decimal FormatSize(long value)
         {
             return Math.Round((decimal)value / 1024 / 1024, 2);
-        }
-        static decimal FormatTime(Stopwatch value)
-        {
-            return Math.Round((decimal)value.ElapsedMilliseconds, 0);
         }
         public string ConsoleFormat(string text)
         {
@@ -71,7 +73,6 @@ namespace Sync.Extensions
 
             return text.Substring(index);
         }
-        //粗略判断是否为常见“全角/东亚宽字符”（终端通常占两格）
         static bool IsWideChar(char ch)
         {
             // CJK Unified Ideographs

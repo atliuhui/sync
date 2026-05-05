@@ -21,13 +21,13 @@ namespace Sync.Options
 #else
         [Option('n', "name", Required = false, HelpText = "Device Name")]
 #endif
-        public string DeviceName { get; set; }
+        public string DeviceName { get; set; } = string.Empty;
 #if DEBUG
         [Option('r', "root", Required = false, Default = @"")]
 #else
         [Option('r', "root", Required = false, HelpText = "Device Root Directory")]
 #endif
-        public string RootPath { get; set; }
+        public string RootPath { get; set; } = string.Empty;
     }
 
     internal enum DeviceAction

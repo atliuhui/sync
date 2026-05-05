@@ -28,50 +28,52 @@ var builder = Host.CreateDefaultBuilder(args)
     });
 var host = builder.Build();
 
-using (var context = new RuntimeContext(services: host.Services))
+try
+{
+    using var context = new RuntimeContext(services: host.Services);
+    ParseAndRun(args, context);
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine();
+    Console.Error.WriteLine($"[FATAL] {ex.GetType().Name}: {ex.Message}");
+    Console.Error.WriteLine(ex.StackTrace);
+    Environment.ExitCode = 1;
+}
+
+static void ParseAndRun(string[] args, RuntimeContext context)
 {
     Parser.Default.ParseArguments<DeviceOption>(args)
-    .WithParsed<DeviceOption>(option =>
+        .WithParsed(option => Run(option, context));
+}
+static void Run(DeviceOption option, RuntimeContext context)
+{
+    var devices = MediaDeviceExtension.FindDevice();
+
+    if (option.Action == DeviceAction.None)
     {
-        var devices = MediaDeviceExtension.FindDevice();
+        devices.Print();
+        return;
+    }
 
-        if (option.Action == DeviceAction.None)
-        {
-            devices.Print();
-            return;
-        }
+    using var device = devices.FindDevice(option.DeviceName);
+    using var service = new DeviceService(context, device, option.RootPath);
+    using var meter = new ActionMeter($"{service.SerialNumber}[{option.DeviceName}] {option.Action}");
 
-        switch (option.Action)
-        {
-            case DeviceAction.None:
-                devices.Print();
-                break;
-            case DeviceAction.Scan:
-                using (var device = devices.FindDevice(option.DeviceName))
-                using (var service = new DeviceService(context, device, option.RootPath))
-                using (var meter = new ActionMeter($"{service.SerialNumber}[{option.DeviceName}] {option.Action}"))
-                {
-                    service.Scan((text) =>
-                    {
-                        Console.Write($"\r{meter.ConsoleFormat(text)}");
-                    });
-                    context.ArchiveIndex(service.SerialNumber);
-                }
-                break;
-            case DeviceAction.Sync:
-            default:
-                using (var device = devices.FindDevice(option.DeviceName))
-                using (var service = new DeviceService(context, device, option.RootPath))
-                using (var meter = new ActionMeter($"{service.SerialNumber}[{option.DeviceName}] {option.Action}"))
-                {
-                    service.Sync((text) =>
-                    {
-                        Console.Write($"\r{meter.ConsoleFormat(text)}");
-                    });
-                    context.ArchiveIndex(service.SerialNumber);
-                }
-                break;
-        }
-    })
-    ;
+    Execute(option.Action, service, meter);
+    context.ArchiveIndex(service.SerialNumber);
+}
+static void Execute(DeviceAction action, DeviceService service, ActionMeter meter)
+{
+    Action<Action<string>> execute = action switch
+    {
+        DeviceAction.Scan => output => service.Scan(output),
+        DeviceAction.Sync => output => service.Sync(output),
+        _ => output => service.Sync(output),
+    };
+
+    execute(text =>
+    {
+        Console.Write($"\r{meter.ConsoleFormat(text)}");
+    });
 }

@@ -21,7 +21,7 @@ namespace Sync.Services
             this.context = context;
             this.device = device;
             this.device.Connect();
-            this.device_reader = new MediaDeviceInfoReader(this.device);
+            this.device_reader = new MediaDeviceInfoReader(new MediaDeviceAdapter(device));
             if (string.IsNullOrEmpty(root))
             {
                 this.source = device.GetRootDirectory();
@@ -59,7 +59,7 @@ namespace Sync.Services
         {
             output($"{source.Name}");
 
-            var reader = new MediaFileInfoReader(source);
+            var reader = new MediaFileInfoReader(new MediaFileInfoAdapter(source));
             var source_index = new FileIndex
             {
                 Path = reader.Path,
@@ -90,7 +90,7 @@ namespace Sync.Services
         {
             output($"{source.Name}");
 
-            var reader = new MediaFileInfoReader(source);
+            var reader = new MediaFileInfoReader(new MediaFileInfoAdapter(source));
             var source_index = new FileIndex
             {
                 Path = reader.Path,
@@ -126,11 +126,31 @@ namespace Sync.Services
         }
         void Copy(MediaFileInfo source, FileInfo target)
         {
-            if (target.Directory!.Exists == false)
+            if (target.Directory?.Exists == false)
             {
                 target.Directory.Create();
             }
-            source.CopyTo(target.FullName, false);
+            try
+            {
+                source.CopyTo(target.FullName, false);
+            }
+            catch
+            {
+                // Clean up partial file so a retry can proceed and the index stays consistent.
+                try
+                {
+                    target.Refresh();
+                    if (target.Exists)
+                    {
+                        target.Delete();
+                    }
+                }
+                catch
+                {
+                    // Swallow cleanup failures; rethrow original below.
+                }
+                throw;
+            }
         }
         FileInfo CreateTarget(MediaFileInfoReader reader, FileIndex index)
         {
@@ -143,8 +163,18 @@ namespace Sync.Services
 
         public void Dispose()
         {
-            this.device.Disconnect();
-            this.device.Dispose();
+            try
+            {
+                if (this.device.IsConnected)
+                {
+                    this.device.Disconnect();
+                }
+            }
+            finally
+            {
+                this.device.Dispose();
+                GC.SuppressFinalize(this);
+            }
         }
     }
 }
