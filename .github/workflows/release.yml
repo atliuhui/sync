@@ -6,7 +6,11 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -26,15 +30,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('global.json', 'Sync.slnx', 'Sync/**/*.csproj', 'Test/**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-test-${{ hashFiles('global.json', '**/*.csproj', '**/packages.lock.json') }}
           restore-keys: |
+            ${{ runner.os }}-nuget-test-
             ${{ runner.os }}-nuget-
 
       - name: Restore Dependencies
-        run: dotnet restore Sync.slnx
+        run: dotnet restore Sync.slnx --locked-mode
 
       - name: Run Tests
-        run: dotnet test Sync.slnx --configuration Release --no-restore
+        run: dotnet test Sync.slnx --configuration Release --no-restore --filter "TestCategory=CI"
 
   build:
     name: Build ${{ matrix.runtime }}
@@ -55,8 +60,10 @@ jobs:
       - name: Derive Version From Tag
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          REF="${GITHUB_REF_NAME#v}"        # e.g. 0.1.0-test
+          NUMERIC="${REF%%-*}"              # e.g. 0.1.0
+          echo "APP_VERSION=$REF"     >> "$GITHUB_ENV"
+          echo "ASM_VERSION=$NUMERIC" >> "$GITHUB_ENV"
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
@@ -67,12 +74,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('global.json', 'Sync.slnx', 'Sync/**/*.csproj', 'Test/**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ matrix.runtime }}-${{ hashFiles('global.json', '**/*.csproj', '**/packages.lock.json') }}
           restore-keys: |
+            ${{ runner.os }}-nuget-${{ matrix.runtime }}-
             ${{ runner.os }}-nuget-
 
       - name: Restore Dependencies
-        run: dotnet restore Sync/Sync.csproj --runtime "${{ matrix.runtime }}"
+        run: dotnet restore Sync/Sync.csproj --runtime "${{ matrix.runtime }}" --locked-mode
 
       - name: Build Application
         shell: bash
@@ -83,12 +91,10 @@ jobs:
             --no-restore \
             --self-contained false \
             /p:Version="$APP_VERSION" \
-            /p:AssemblyVersion="$APP_VERSION" \
-            /p:FileVersion="$APP_VERSION" \
-            /p:InformationalVersion="${{ github.ref_name }}" \
-            /p:IncludeSourceRevisionInInformationalVersion=false \
+            /p:AssemblyVersion="$ASM_VERSION" \
+            /p:FileVersion="$ASM_VERSION" \
+            /p:InformationalVersion="$APP_VERSION" \
             /p:PublishSingleFile=true \
-            /p:EnableCompressionInSingleFile=true \
             /p:DebugSymbols=false \
             /p:DebugType=None \
             /p:PublishReadyToRun=false \
@@ -109,11 +115,16 @@ jobs:
         with:
           name: release-${{ matrix.runtime }}
           path: artifacts/${{ matrix.artifact }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
 
   release:
     name: Release
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: write
 
     steps:
       - name: Download Packaged Artifacts
@@ -123,8 +134,21 @@ jobs:
           pattern: release-*
           merge-multiple: true
 
+      - name: Generate Checksums
+        shell: bash
+        run: |
+          cd release-artifacts
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        # Pinned to v3.0.0 commit SHA for supply-chain safety.
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda
         with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           files: release-artifacts/*
           generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true
