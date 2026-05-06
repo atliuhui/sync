@@ -9,7 +9,7 @@ namespace Sync.Extensions
         public static TemplateOptions DefaultOptions()
         {
             TemplateOptions options = new TemplateOptions();
-            options.MemberAccessStrategy.Register<JObject, object>((source, name) => source[name]);
+            options.MemberAccessStrategy.Register<JObject, object>((source, name) => source[name] ?? (object)JValue.CreateNull());
             options.ValueConverters.Add(x => x is JObject o ? new ObjectValue(o) : null);
             options.ValueConverters.Add(x => x is JValue v ? v.Value : null);
 

@@ -19,7 +19,7 @@ namespace Test
                 var reader = new FileInfoReader(fileInfo);
 
                 Assert.IsNotNull(reader.Path);
-                Assert.IsTrue(reader.Path.Length > 0);
+                Assert.IsGreaterThan(0, reader.Path.Length);
                 Assert.AreEqual(tempFile, reader.Path);
             }
             finally
@@ -40,9 +40,9 @@ namespace Test
                 var fileInfo = new FileInfo(tempFile);
                 var reader = new FileInfoReader(fileInfo);
                 
-                Assert.IsTrue(reader.Name.EndsWith(".tmp"));
-                Assert.IsFalse(reader.Name.Contains("\\"));
-                Assert.IsFalse(reader.Name.Contains("/"));
+                Assert.EndsWith(".tmp", reader.Name);
+                Assert.DoesNotContain("\\", reader.Name);
+                Assert.DoesNotContain("/", reader.Name);
             }
             finally
             {
@@ -66,7 +66,7 @@ namespace Test
                 var reader = new FileInfoReader(fileInfo);
 
                 Assert.AreEqual(testContent.Length, reader.Size);
-                Assert.IsTrue(reader.Size > 0);
+                Assert.IsGreaterThan(0, reader.Size);
             }
             finally
             {
@@ -88,7 +88,6 @@ namespace Test
                 
                 var reader = new FileInfoReader(fileInfo);
 
-                Assert.IsNotNull(reader.Date);
                 Assert.AreNotEqual(DateTime.MinValue, reader.Date);
                 Assert.IsTrue(reader.Date <= DateTime.Now.AddSeconds(1));
                 Assert.IsTrue(reader.Date >= DateTime.Now.AddMinutes(-5));

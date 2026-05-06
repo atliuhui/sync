@@ -196,7 +196,7 @@ namespace Test
             var result = reader.Size;
 
             Assert.AreEqual((ulong)uint.MaxValue + 1, result);
-            Assert.IsTrue(result > uint.MaxValue);
+            Assert.IsGreaterThan(uint.MaxValue, result);
         }
     }
 }
