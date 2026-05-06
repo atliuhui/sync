@@ -39,7 +39,7 @@ jobs:
         run: dotnet restore Sync.slnx --locked-mode
 
       - name: Run Tests
-        run: dotnet test Sync.slnx --configuration Release --no-restore --filter "TestCategory=CI"
+        run: dotnet test --solution Sync.slnx --configuration Release --no-restore --filter "TestCategory=CI"
 
   build:
     name: Build ${{ matrix.runtime }}
@@ -52,6 +52,8 @@ jobs:
         include:
           - runtime: win-x64
             artifact: sync-win-x64.zip
+          - runtime: win-arm64
+            artifact: sync-win-arm64.zip
 
     steps:
       - name: Checkout Repository
