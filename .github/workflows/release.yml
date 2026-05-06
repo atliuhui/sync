@@ -90,14 +90,14 @@ jobs:
             --runtime "${{ matrix.runtime }}" \
             --no-restore \
             --self-contained false \
-            /p:Version="$APP_VERSION" \
-            /p:AssemblyVersion="$ASM_VERSION" \
-            /p:FileVersion="$ASM_VERSION" \
-            /p:InformationalVersion="$APP_VERSION" \
-            /p:PublishSingleFile=true \
-            /p:DebugSymbols=false \
-            /p:DebugType=None \
-            /p:PublishReadyToRun=false \
+            -p:Version="$APP_VERSION" \
+            -p:AssemblyVersion="$ASM_VERSION" \
+            -p:FileVersion="$ASM_VERSION" \
+            -p:InformationalVersion="$APP_VERSION" \
+            -p:PublishSingleFile=true \
+            -p:DebugSymbols=false \
+            -p:DebugType=None \
+            -p:PublishReadyToRun=false \
             --output "artifacts/${{ matrix.runtime }}"
 
       - name: Package Artifact
