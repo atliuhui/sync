@@ -7,22 +7,34 @@ namespace Sync.Extensions
 {
     public static class GrokExtension
     {
+        static readonly object _initLock = new();
+        static volatile bool _initialized;
         static IEnumerable<string> GrokCores { get; set; } = Array.Empty<string>();
         static IEnumerable<GrokPatternDate> GrokDates { get; set; } = Array.Empty<GrokPatternDate>();
 
         public static void Init(IConfiguration configuration)
         {
-            GrokCores = new List<string>();
-            GrokDates = new List<GrokPatternDate>();
-            configuration.GetRequiredSection("Grok:Cores").Bind(GrokCores);
-            configuration.GetRequiredSection("Grok:Patterns:Dates").Bind(GrokDates);
-
-            var grok_cores = Encoding.UTF8.GetBytes(string.Join("\n", GrokCores));
-            var index = 0;
-            foreach (var item in GrokDates)
+            if (_initialized) return;
+            lock (_initLock)
             {
-                item.Name = $"DP{++index:D2}";
-                item.Grok = new Grok(item.Pattern, new MemoryStream(grok_cores));
+                if (_initialized) return;
+
+                var cores = new List<string>();
+                var dates = new List<GrokPatternDate>();
+                configuration.GetRequiredSection("Grok:Cores").Bind(cores);
+                configuration.GetRequiredSection("Grok:Patterns:Dates").Bind(dates);
+
+                var grok_cores = Encoding.UTF8.GetBytes(string.Join("\n", cores));
+                var index = 0;
+                foreach (var item in dates)
+                {
+                    item.Name = $"DP{++index:D2}";
+                    item.Grok = new Grok(item.Pattern, new MemoryStream(grok_cores));
+                }
+
+                GrokCores = cores;
+                GrokDates = dates;
+                _initialized = true;
             }
         }
 
