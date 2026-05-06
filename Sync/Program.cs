@@ -30,7 +30,8 @@ var host = builder.Build();
 // https://learn.microsoft.com/zh-cn/dotnet/csharp/fundamentals/tutorials/system-command-line
 var actionOption = new Option<DeviceAction>("--action", "-a")
 {
-    Description = "None, Scan, Sync",
+    Description = $"Action to perform on the device ({string.Join(" | ", Enum.GetNames<DeviceAction>())})",
+    HelpName = "action",
 #if DEBUG
     DefaultValueFactory = _ => DeviceAction.Scan,
 #else
@@ -39,7 +40,8 @@ var actionOption = new Option<DeviceAction>("--action", "-a")
 };
 var nameOption = new Option<string>("--name", "-n")
 {
-    Description = "Device Name",
+    Description = "Friendly name of the target media device (e.g. \"Apple iPhone\")",
+    HelpName = "name",
 #if DEBUG
     DefaultValueFactory = _ => "Redmi 5 Plus",
 #else
@@ -48,16 +50,17 @@ var nameOption = new Option<string>("--name", "-n")
 };
 var rootOption = new Option<string>("--root", "-r")
 {
-    Description = "Device Root Directory",
+    Description = "Root directory on the device to scan or sync (empty = device default)",
+    HelpName = "path",
     DefaultValueFactory = _ => string.Empty,
 };
 
-var deviceCommand = new Command("Device", "Device Sync")
+var deviceCommand = new Command("Device", "Scan or sync media files on a connected portable device")
 {
     Options = { actionOption, nameOption, rootOption, },
 };
 
-var rootCommand = new RootCommand("Sync")
+var rootCommand = new RootCommand("Sync — command-line tool for scanning and syncing media files from portable devices")
 {
     Options = { actionOption, nameOption, rootOption, },
     Subcommands = { deviceCommand, },
