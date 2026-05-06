@@ -30,9 +30,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-test-${{ hashFiles('global.json', '**/*.csproj', '**/packages.lock.json') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('global.json', '**/*.csproj', '**/packages.lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-nuget-test-
             ${{ runner.os }}-nuget-
 
       - name: Restore Dependencies
@@ -76,13 +75,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ matrix.runtime }}-${{ hashFiles('global.json', '**/*.csproj', '**/packages.lock.json') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('global.json', '**/*.csproj', '**/packages.lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-nuget-${{ matrix.runtime }}-
             ${{ runner.os }}-nuget-
 
       - name: Restore Dependencies
-        run: dotnet restore Sync/Sync.csproj --runtime "${{ matrix.runtime }}" --locked-mode
+        run: dotnet restore Sync/Sync.csproj --locked-mode
 
       - name: Build Application
         shell: bash
