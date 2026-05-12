@@ -106,16 +106,30 @@ static void Run(DeviceAction action, string name, string rootPath, RuntimeContex
 }
 static void Execute(DeviceAction action, DeviceService service, ActionMeter meter)
 {
-    Action<Action<string>> execute = action switch
+    Action<Action<string, bool>> execute = action switch
     {
         DeviceAction.Scan => output => service.Scan(output),
         DeviceAction.Sync => output => service.Sync(output),
         _ => output => service.Sync(output),
     };
 
-    execute(text =>
+    var lastProgress = string.Empty;
+    execute((text, isError) =>
     {
-        Console.Write($"\r{meter.ConsoleFormat(text)}");
+        if (isError)
+        {
+            meter.ConsoleClear();
+            Console.WriteLine(text);
+        }
+        else
+        {
+            lastProgress = text;
+        }
+
+        if (lastProgress.Length > 0)
+        {
+            Console.Write($"\r{meter.ConsoleFormat(lastProgress)}");
+        }
     });
 }
 

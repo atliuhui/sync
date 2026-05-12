@@ -1,5 +1,6 @@
 ﻿using MediaDevices;
 using Sync.Extensions;
+using System.Runtime.InteropServices;
 
 namespace Sync.Services
 {
@@ -32,16 +33,16 @@ namespace Sync.Services
             }
         }
 
-        public void Scan(Action<string> output)
+        public void Scan(Action<string, bool> output)
         {
             this.Scan(this.source, output);
         }
-        public void Sync(Action<string> output)
+        public void Sync(Action<string, bool> output)
         {
             this.Copy(this.source, output);
         }
 
-        void Scan(MediaDirectoryInfo source, Action<string> output)
+        void Scan(MediaDirectoryInfo source, Action<string, bool> output)
         {
             var files = source.EnumerateFiles();
             foreach (var item in files)
@@ -55,9 +56,9 @@ namespace Sync.Services
                 this.Scan(item, output);
             }
         }
-        FileIndex Scan(MediaFileInfo source, Action<string> output)
+        FileIndex Scan(MediaFileInfo source, Action<string, bool> output)
         {
-            output($"{source.Name}");
+            output($"{source.Name}", false);
 
             var reader = new MediaFileInfoReader(new MediaFileInfoAdapter(source));
             var source_index = new FileIndex
@@ -70,25 +71,107 @@ namespace Sync.Services
 
             return source_index;
         }
-        void Copy(MediaDirectoryInfo source, Action<string> output)
+        void Copy(MediaDirectoryInfo source, Action<string, bool> output)
         {
-            var files = source.EnumerateFiles()
+            var files = SafeEnumerateFiles(source, output)
                 .Where(item => this.context.AllowedFile(item.Name));
             foreach (var item in files)
             {
-                this.context.RecordIndex(item.FullName, () => Copy(item, output));
+                try
+                {
+                    this.context.RecordIndex(item.FullName, () => Copy(item, output));
+                }
+                catch (COMException ex)
+                {
+                    output($"0x{ex.HResult:X8} {item.FullName} {ex.Message}", true);
+                    this.context.RecordIndex(item.FullName, () => new FileIndex
+                    {
+                        Path = item.FullName,
+                        Note = $"copy:exception:0x{ex.HResult:X8}",
+                    });
+                }
             }
 
-            var folders = source.EnumerateDirectories()
+            var folders = SafeEnumerateDirectories(source, output)
                 .Where(item => this.context.AllowedDirectory(item.Name));
             foreach (var item in folders)
             {
                 this.Copy(item, output);
             }
         }
-        FileIndex Copy(MediaFileInfo source, Action<string> output)
+        IEnumerable<MediaFileInfo> SafeEnumerateFiles(MediaDirectoryInfo source, Action<string, bool> output)
         {
-            output($"{source.Name}");
+            IEnumerator<MediaFileInfo>? enumerator = null;
+            try
+            {
+                enumerator = source.EnumerateFiles().GetEnumerator();
+            }
+            catch (COMException ex)
+            {
+                output($"0x{ex.HResult:X8} {source.FullName} [all-files]: {ex.Message}", true);
+                yield break;
+            }
+
+            using (enumerator)
+            {
+                while (true)
+                {
+                    MediaFileInfo current;
+                    try
+                    {
+                        if (!enumerator.MoveNext())
+                        {
+                            yield break;
+                        }
+                        current = enumerator.Current;
+                    }
+                    catch (COMException ex)
+                    {
+                        output($"0x{ex.HResult:X8} {source.FullName} [part-files]: {ex.Message}", true);
+                        yield break;
+                    }
+                    yield return current;
+                }
+            }
+        }
+        IEnumerable<MediaDirectoryInfo> SafeEnumerateDirectories(MediaDirectoryInfo source, Action<string, bool> output)
+        {
+            IEnumerator<MediaDirectoryInfo>? enumerator = null;
+            try
+            {
+                enumerator = source.EnumerateDirectories().GetEnumerator();
+            }
+            catch (COMException ex)
+            {
+                output($"0x{ex.HResult:X8} {source.FullName} [all-dirs]: {ex.Message}", true);
+                yield break;
+            }
+
+            using (enumerator)
+            {
+                while (true)
+                {
+                    MediaDirectoryInfo current;
+                    try
+                    {
+                        if (!enumerator.MoveNext())
+                        {
+                            yield break;
+                        }
+                        current = enumerator.Current;
+                    }
+                    catch (COMException ex)
+                    {
+                        output($"0x{ex.HResult:X8} {source.FullName} [part-dirs]: {ex.Message}", true);
+                        yield break;
+                    }
+                    yield return current;
+                }
+            }
+        }
+        FileIndex Copy(MediaFileInfo source, Action<string, bool> output)
+        {
+            output($"{source.Name}", false);
 
             var reader = new MediaFileInfoReader(new MediaFileInfoAdapter(source));
             var source_index = new FileIndex
@@ -102,7 +185,7 @@ namespace Sync.Services
 
             if (projection_file.Exists)
             {
-                source_index.Note = $"projection";
+                source_index.Note = $"skip:projection";
             }
             else if (target_file.Exists == false)
             {
@@ -114,11 +197,11 @@ namespace Sync.Services
                 var target_reader = new FileInfoReader(target_file);
                 if (source_index.Size == target_reader.Size)
                 {
-                    source_index.Note = $"same";
+                    source_index.Note = $"skip:same";
                 }
                 else
                 {
-                    source_index.Note = $"{source_index.Size}|{target_reader.Size}";
+                    source_index.Note = $"skip:size-mismatch:{source_index.Size}|{target_reader.Size}";
                 }
             }
 

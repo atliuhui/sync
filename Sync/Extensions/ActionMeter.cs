@@ -37,13 +37,35 @@ namespace Sync.Extensions
         }
         public string ConsoleFormat(string text)
         {
-            var width = Console.WindowWidth;
+            var width = 0;
+            try { width = Console.WindowWidth; } catch { /* redirected output */ }
+
             var name_format = $"{this.name} ";
             var time_format = $" ({(int)this.stopwatch.Elapsed.TotalSeconds} s)";
             var text_width = width - name_format.Length - time_format.Length;
-            var format = $"{name_format}{CutFormat(text, text_width, out var pad).PadLeft(pad)}{time_format}";
-
-            return format;
+            if (text_width <= 0)
+            {
+                return $"{name_format}{text}{time_format}";
+            }
+            var cut = CutFormat(text, text_width, out var pad);
+            if (pad < 0)
+            {
+                pad = 0;
+            }
+            return $"{name_format}{cut.PadLeft(pad)}{time_format}";
+        }
+        public void ConsoleClear()
+        {
+            var width = 0;
+            try { width = Console.WindowWidth; } catch { /* redirected output */ }
+            if (width <= 1)
+            {
+                return;
+            }
+            var blank = new string(' ', width - 1);
+            Console.Write('\r' + blank + '\n' + blank + '\r');
+            try { Console.SetCursorPosition(0, Math.Max(0, Console.CursorTop - 1)); }
+            catch { /* redirected output */ }
         }
         static string CutFormat(string text, int width, out int pad)
         {
