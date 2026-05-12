@@ -135,22 +135,38 @@ namespace Sync.Services
                 throw new ArgumentNullException("Storage:Gallery:Subfolder:Name:Template#Render");
             }
         }
-        public bool AllowedFile(string name)
+        public bool AllowedFile(string? name)
         {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
             return this.IgnoredFile(name) == false
                 && this.Mappings.Keys.Contains(Path.GetExtension(name));
         }
-        public bool IgnoredFile(string name)
+        public bool IgnoredFile(string? name)
         {
+            if (string.IsNullOrEmpty(name))
+            {
+                return true;
+            }
             return this.IgnoredFilePrefixs.Any(item => name.StartsWith(item, StringComparison.OrdinalIgnoreCase))
                 || this.IgnoredFileSuffixs.Any(item => name.EndsWith(item, StringComparison.OrdinalIgnoreCase));
         }
-        public bool AllowedDirectory(string name)
+        public bool AllowedDirectory(string? name)
         {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
             return this.IgnoredDirectory(name) == false;
         }
-        public bool IgnoredDirectory(string name)
+        public bool IgnoredDirectory(string? name)
         {
+            if (string.IsNullOrEmpty(name))
+            {
+                return true;
+            }
             return this.IgnoredDirectoryPrefixs.Any(item => name.StartsWith(item, StringComparison.OrdinalIgnoreCase))
                 || this.IgnoredDirectorySuffixs.Any(item => name.EndsWith(item, StringComparison.OrdinalIgnoreCase));
         }

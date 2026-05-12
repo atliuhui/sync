@@ -42,7 +42,12 @@ namespace Sync.Extensions
 
             var name_format = $"{this.name} ";
             var time_format = $" ({(int)this.stopwatch.Elapsed.TotalSeconds} s)";
-            var text_width = width - name_format.Length - time_format.Length;
+            if (width <= 1)
+            {
+                return $"{name_format}{text}{time_format}";
+            }
+            var usable = width - 1;
+            var text_width = usable - DisplayWidth(name_format) - DisplayWidth(time_format);
             if (text_width <= 0)
             {
                 return $"{name_format}{text}{time_format}";
@@ -53,6 +58,15 @@ namespace Sync.Extensions
                 pad = 0;
             }
             return $"{name_format}{cut.PadLeft(pad)}{time_format}";
+        }
+        static int DisplayWidth(string text)
+        {
+            var width = 0;
+            foreach (var ch in text)
+            {
+                width = width + (IsWideChar(ch) ? 2 : 1);
+            }
+            return width;
         }
         public void ConsoleClear()
         {
