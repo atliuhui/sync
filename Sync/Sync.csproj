@@ -8,6 +8,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>$(MSBuildProjectName.ToLower())</AssemblyName>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
